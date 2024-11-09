@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ペルソナコンセプトジェネレーター</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.js"></script>
+</head>
+<body class="bg-gray-50">
+    <div id="app" class="container mx-auto px-4 py-8 max-w-4xl">
+        <h1 class="text-2xl font-bold text-center mb-8">ペルソナコンセプトジェネレーター</h1>
+        
+        <!-- タブ切り替え -->
+        <div class="flex space-x-2 mb-6">
+            <button 
+                v-for="tab in ['入力', '設定', '保存済み']" 
+                :key="tab"
+                @click="activeTab = tab"
+                :class="[
+                    'px-4 py-2 rounded-lg',
+                    activeTab === tab ? 'bg-blue-500 text-white' : 'bg-gray-200'
+                ]"
+            >{{tab}}</button>
+        </div>
+
+        <!-- 入力タブ -->
+        <div v-if="activeTab === '入力'" class="space-y-6">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-bold mb-4">基本情報</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div v-for="(field, key) in basicFields" :key="key">
+                        <label class="block text-sm font-medium mb-1">{{field.label}}</label>
+                        <input 
+                            type="text" 
+                            v-model="persona[key]"
+                            :placeholder="field.placeholder"
+                            class="w-full p-2 border rounded-lg"
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-bold mb-4">詳細情報</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div v-for="(field, key) in detailFields" :key="key">
+                        <label class="block text-sm font-medium mb-1">{{field.label}}</label>
+                        <input 
+                            type="text" 
+                            v-model="persona[key]"
+                            :placeholder="field.placeholder"
+                            class="w-full p-2 border rounded-lg"
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <button 
+                @click="generateConcept"
+                class="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600"
+            >
+                コンセプトを生成
+            </button>
+
+            <!-- 生成されたコンセプト -->
+            <div v-if="concept" class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-bold mb-4">生成されたコンセプト</h2>
+                <div class="space-y-4">
+                    <div>
+                        <div class="font-medium">テーマ</div>
+                        <div>{{concept.theme}}</div>
+                    </div>
+                    <div>
+                        <div class="font-medium">主な特徴</div>
+                        <ul class="list-disc list-inside">
+                            <li v-for="feature in concept.features" :key="feature">
+                                {{feature}}
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <div class="font-medium">ターゲットユーザー</div>
+                        <div>{{concept.target}}</div>
+                    </div>
+                    <div>
+                        <div class="font-medium">独自の価値提案</div>
+                        <div>{{concept.value}}</div>
+                    </div>
+                </div>
+                <button 
+                    @click="saveConcept"
+                    class="w-full mt-4 bg-green-500 text-white py-2 rounded-lg hover:bg-green-600"
+                >
+                    保存する
+                </button>
+            </div>
+        </div>
+
+        <!-- 設定タブ -->
+        <div v-if="activeTab === '設定'" class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-bold mb-4">テーマ設定</h2>
+            <div class="space-y-4">
+                <div class="flex space-x-2">
+                    <input 
+                        type="text" 
+                        v-model="newTheme"
+                        placeholder="新しいテーマを入力"
+                        class="flex-1 p-2 border rounded-lg"
+                    >
+                    <button 
+                        @click="addTheme"
+                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                    >
+                        追加
+                    </button>
+                </div>
+                <div class="space-y-2">
+                    <div 
+                        v-for="theme in themes" 
+                        :key="theme"
+                        class="flex justify-between items-center p-2 border rounded-lg"
+                    >
+                        <span>{{theme}}</span>
+                        <button 
+                            @click="removeTheme(theme)"
+                            class="text-red-500 hover:text-red-600"
+                        >
+                            削除
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 保存済みタブ -->
+        <div v-if="activeTab === '保存済み'" class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-bold mb-4">保存済みコンセプト</h2>
+            <div class="space-y-4">
+                <div 
+                    v-for="saved in savedConcepts" 
+                    :key="saved.id"
+                    class="p-4 border rounded-lg"
+                >
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <div class="font-medium">{{saved.theme}}</div>
+                            <div class="text-sm text-gray-500">{{saved.date}}</div>
+                        </div>
+                        <button 
+                            @click="deleteConcept(saved.id)"
+                            class="text-red-500 hover:text-red-600"
+                        >
+                            削除
+                        </button>
+                    </div>
+                    <div class="text-sm">{{saved.value}}</div>
+                </div>
+                <div v-if="savedConcepts.length === 0" class="text-center text-gray-500">
+                    保存されたコンセプトはありません
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive } = Vue
+
+        createApp({
+            setup() {
+                const activeTab = ref('入力')
+                const newTheme = ref('')
+                const savedConcepts = ref([])
+                const concept = ref(null)
+
+                const themes = ref([
+                    '快適な生活をサポート',
+                    'ストレスフリーな日常',
+                    '効率的な時間管理',
+                    '充実したライフスタイル',
+                    'コミュニティとの繋がり'
+                ])
+
+                const basicFields = {
+                    age: { label: '年齢層', placeholder: '例: 20代' },
+                    gender: { label: '性別', placeholder: '例: 女性' },
+                    occupation: { label: '職業', placeholder: '例: 会社員' },
+                    income: { label: '年収', placeholder: '例: 400万円' },
+                    location: { label: '居住地', placeholder: '例: 都心部' }
+                }
+
+                const detailFields = {
+                    lifestyle: { label: 'ライフスタイル', placeholder: '例: アクティブ' },
+                    interests: { label: '興味・関心', placeholder: '例: 健康、趣味' },
+                    painPoints: { label: '課題・悩み', placeholder: '例: 時間管理' },
+                    values: { label: '価値観', placeholder: '例: 健康重視' }
+                }
+
+                const persona = reactive({})
+
+                const generateConcept = () => {
+                    const randomTheme = themes.value[Math.floor(Math.random() * themes.value.length)]
+                    concept.value = {
+                        id: Date.now(),
+                        theme: randomTheme,
+                        features: [
+                            `${persona.painPoints}の解決を重視した${persona.lifestyle}向けの機能`,
+                            `${persona.interests}に基づいた${persona.values}に適した提案`,
+                            `${persona.occupation}の特性を考慮したアプローチ`
+                        ],
+                        target: `${persona.age}の${persona.gender}、${persona.location}在住`,
+                        value: `${persona.interests}の特性を活かしたソリューション`,
+                        date: new Date().toLocaleString()
+                    }
+                }
+
+                const saveConcept = () => {
+                    if (concept.value) {
+                        savedConcepts.value.push(concept.value)
+                        // LocalStorageに保存
+                        localStorage.setItem('savedConcepts', JSON.stringify(savedConcepts.value))
+                    }
+                }
+
+                const deleteConcept = (id) => {
+                    savedConcepts.value = savedConcepts.value.filter(c => c.id !== id)
+                    localStorage.setItem('savedConcepts', JSON.stringify(savedConcepts.value))
+                }
+
+                const addTheme = () => {
+                    if (newTheme.value && !themes.value.includes(newTheme.value)) {
+                        themes.value.push(newTheme.value)
+                        newTheme.value = ''
+                        localStorage.setItem('themes', JSON.stringify(themes.value))
+                    }
+                }
+
+                const removeTheme = (theme) => {
+                    themes.value = themes.value.filter(t => t !== theme)
+                    localStorage.setItem('themes', JSON.stringify(themes.value))
+                }
+
+                // 保存データの読み込み
+                const loadSavedData = () => {
+                    const savedThemes = localStorage.getItem('themes')
+                    const savedConceptsData = localStorage.getItem('savedConcepts')
+                    
+                    if (savedThemes) {
+                        themes.value = JSON.parse(savedThemes)
+                    }
+                    if (savedConceptsData) {
+                        savedConcepts.value = JSON.parse(savedConceptsData)
+                    }
+                }
+
+                // 初期読み込み
+                loadSavedData()
+
+                return {
+                    activeTab,
+                    newTheme,
+                    themes,
+                    savedConcepts,
+                    concept,
+                    persona,
+                    basicFields,
+                    detailFields,
+                    generateConcept,
+                    saveConcept,
+                    deleteConcept,
+                    addTheme,
+                    removeTheme
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
